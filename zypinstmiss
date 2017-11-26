@@ -50,6 +50,6 @@ done < $GREPFILE
 echo ""
 echo "$all_need_install"
 
-#rm -v "$ZYPFILE" "$GREPFILE"
+rm -v "$ZYPFILE" "$GREPFILE"
 
  
