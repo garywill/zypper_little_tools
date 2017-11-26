@@ -1,0 +1,55 @@
+#!/bin/bash
+
+TMPPATH="/dev/shm/"
+ZYPFILE="$TMPPATH/tmp-$RANDOM"
+GREPFILE="$ZYPFILE-g"
+
+kw=$1
+
+#zypper se > "$ZYPFILE"
+zypper se |sed  's/   \+   /\t/g' > "$ZYPFILE"
+grep -n -E '^i' "$ZYPFILE" > "$GREPFILE"
+
+all_need_install=""
+
+while read line 
+do
+    
+    pack_line_num=$( echo $line |awk -F : '{print $1}'  )
+    pack_line_content=$( sed -n "$pack_line_num p" "$ZYPFILE")
+    packname=$( echo $line |awk  '{print $3}'  )
+    #echo packname is: $packname
+    
+    #echo $pack_line_content
+    #pack_printed=0
+    for(( u=1;u<6;u++ )); do
+        line_check=$(expr $pack_line_num + $u)
+        line_check_content=$( sed -n "$line_check p" "$ZYPFILE" )
+        if !(echo "$line_check_content" | grep -E '^i' >/dev/null)  # if this pack after pack is not installed
+        then
+            check_name=$( echo "$line_check_content"|awk '{print $2}' ) # non-installed pack name
+            #echo check_name is : $check_name
+            if [[ $check_name == $packname* ]] ; then
+                
+                if [[ $check_name == "$packname-$kw" ]] ; then
+                    echo "$pack_line_content"
+                    echo "$line_check_content"
+                    all_need_install="$all_need_install $check_name"
+                    #echo $all_need_install
+                    break
+                fi
+            else
+                break
+            fi
+        fi
+    done
+    
+    
+done < $GREPFILE
+
+echo ""
+echo "$all_need_install"
+
+#rm -v "$ZYPFILE" "$GREPFILE"
+
+ 
