@@ -1,0 +1,244 @@
+#!/bin/bash
+
+# USAGE:
+#       sudo cat /var/log/zypp/history | ./zypInstManuAuto 
+
+
+TMP_DIR=$(mktemp -d /dev/shm/zypinstma-XXXXXX)
+RESULT_DIR=$TMP_DIR/results
+echo "Temp dir $TMP_DIR"
+echo ""
+
+function parseZypperCmd()   # NOTE every parameter is 'xxxx' single-quoter quoted
+{
+    local full_shellcmd="$@"
+    
+    shift  # 'zypper'
+    
+    while [[ "${1:0:2}" == "'-" ]]
+    do
+#         echo "shift $1"
+        shift
+    done
+    
+#     echo "$1"
+    if [[ "$1" == "'up'" || "$1" == "'update'" ]]; then
+        echo "update"
+    elif [[ "$1" == "'in'" || "$1" == "'install'" ]]; then
+        echo "install"
+    elif [[ "$1" == "'rm'" || "$1" == "'remote'" ]]; then
+        echo "remove"
+    elif [[ "$1" == "'dup'" || "$1" == "'dist-upgrade'" ]]; then
+        echo "dist-upgrade"
+    elif [[ "$1" == "'purge-kernels'" ]]; then
+        echo "purge-kernels"
+        
+    else
+        echo "FAIL"
+        return 3
+    fi
+}
+
+cd $TMP_DIR
+touch  installed.txt   installed_user-choose.txt   installed_auto-select.txt   installed_unsure.txt 
+function isPackageAlreadyInstalled() {
+    local package="$1"
+    
+    local package_="$( echo "$package" | sed 's/\./\\\./g' | sed 's/+/\\+/g'  )"
+    if (  cat installed.txt | grep -P "^$package_\t"  >/dev/null 2>&1  ); then
+        return 0
+    else
+        return 1
+    fi
+}
+function removePackage() {
+    local package="$1"
+    
+    sed -i "/^${package}\t/d" installed.txt   installed_user-choose.txt   installed_auto-select.txt   installed_unsure.txt 
+}
+function installPackage() { 
+    local package="$1"
+    
+    local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
+    
+    echo "$newLineText" >> installed.txt 
+}
+function installPackage_userchoose() {
+    local package="$1"
+    
+    local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
+    
+    echo "$newLineText" >> installed_user-choose.txt 
+}
+function installPackage_autoselect() {
+    local package="$1"
+    
+    local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
+    
+    echo "$newLineText" >> installed_auto-select.txt 
+}
+function installPackage_unsure() {
+    local package="$1"
+    
+    local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
+    
+    echo "$newLineText" >> installed_unsure.txt 
+}
+
+curCommandAtLine=
+curCommandAtTime=
+curProgram=
+curZypAction=
+
+function parseHistFileLine() 
+{
+    local line="$@"
+    
+    local time
+    local line_type
+    
+    local full_shellcmd
+    local program
+    local zypper_action
+    
+    local package
+    local sixth_col  # actually 5th after preprocess
+    
+    local parseZypperCmd_result
+    local install_type  # user-choose | auto-select | unsure
+
+    time="$(  echo "$line" | cut -d'|' -f 1  )"
+#     echo $time
+    line_type="$(  echo "$line" | cut -d'|' -f 2 | awk '{print $1}' )"
+    
+    if [[ $line_type == "command" ]]; then
+        curCommandAtLine=$iLine
+        curCommandAtTime="$time"
+        
+        full_shellcmd="$(  echo "$line" | cut -d'|' -f 4  )"
+        if  ( echo "$full_shellcmd" | awk '{print $1}' | grep -E "\bzypper\b" >/dev/null 2>&1 ); then # zypper
+            program="zypper"
+            
+            parseZypperCmd_result="$(parseZypperCmd $full_shellcmd)"   # don't use quoter
+            if [[ ! $parseZypperCmd_result == "FAIL" ]]; then
+                zypper_action=$parseZypperCmd_result
+                curZypAction=$zypper_action
+#                 echo $zypper_action
+            else
+                echo "Failed to parse this zypper command: $full_shellcmd"
+                exit 1
+            fi
+
+        else # not zypper , is yast
+            curZypAction=""
+            if (  echo "$line" | grep -E "\bsw_single\b"  >/dev/null 2>&1  ) ; then  # yast sw_single
+                program="yast_sw_single"
+            elif (  echo "$line" | grep -E "\bOneClickInstallWorker\b"  >/dev/null 2>&1  ) ; then  # yast OneClickInstallWorker
+                program="OneClickInstallWorker"
+            else
+                program="system_installation"
+            fi
+        fi
+        curProgram=$program
+
+        if [[ $curZypAction == "dist-upgrade" ]]; then
+            echo -e "\n---------------------------------------------------------------------------------------"
+        fi
+        echo "found a history command at  L$curCommandAtLine  $curCommandAtTime  $curProgram $curZypAction"
+
+        echo "" >> $TMP_DIR/installed.txt 
+        echo "" >> $TMP_DIR/installed_user-choose.txt
+        echo "" >> $TMP_DIR/installed_auto-select.txt   
+        echo "" >> $TMP_DIR/installed_unsure.txt 
+         
+          
+    elif [[ $line_type == "install" ]]; then
+        package="$(  echo "$line" | cut -d'|' -f 3  )"
+        
+        # 判断时间    
+            
+            sixth_col="$(  echo "$line" | cut -d'|' -f 5  )"
+
+            #                     manual-chosee when install system, or OneClickInstall
+            if [[ "$sixth_col" == "root@install" || "$sixth_col" =~ ^[0-9]+:ruby.ruby ]]; then
+                install_type="user-choose"
+    #             echo "user-choose    $sixth_col"
+            else
+
+                if [[ $curProgram == "zypper" ]]; then
+                    if [[ $curZypAction == "install" ]]; then
+                        if [[ "$sixth_col" =~ ^root@ ]]; then
+                            install_type="user-choose"
+                        else
+                            install_type="auto-select"
+                        fi
+                    else
+                        install_type="auto-select"
+                    fi
+                elif [[ $curProgram == "yast_sw_single" ]]; then
+                    if [[ ! -n $sixth_col ]]; then
+                        install_type="auto-select"
+                    else
+                        install_type="unsure"
+                    fi
+                elif [[ $curProgram == "system_installation" ||  $curProgram == "OneClickInstall" ]]; then # TODO
+                    # install_type  can be already valued above, If not, this package is auto-select
+                    if [[ ! -n "$install_type" ]]; then
+                        install_type="auto-select"
+                    fi
+                fi
+            fi
+        
+#         echo $install_type
+
+        if [[ $install_type == "user-choose" ]]; then
+            removePackage "$package"
+            installPackage "$package"
+            installPackage_userchoose "$package"
+        fi
+        
+        if ( ! isPackageAlreadyInstalled "$package" ); then
+            installPackage "$package"
+            
+            if [[ $install_type == "auto-select" ]]; then
+                installPackage_autoselect "$package"
+            elif [[ $install_type == "unsure" ]]; then
+                installPackage_unsure "$package"
+            fi
+        fi
+        
+        
+
+        
+        
+    elif [[ $line_type == "remove" ]]; then
+        package="$(  echo "$line" | cut -d'|' -f 3  )"
+        removePackage "$package"
+    fi
+    
+}
+
+# === begin main ===
+
+# preprocess
+cat /dev/stdin | grep -v -E "^#" | grep -v "|patch  |" | grep -v "|patch  |" | grep -v "|rremove|" | cut -d'|' -f 1,2,3,4,6  > $TMP_DIR/history.txt
+
+# if the history begins from system installing
+if ! ( cat $TMP_DIR/history.txt | head -n 1 | grep -E "^....-..-.. ..:..:..\|command\|root@install\|.*\binstallation\b" >/dev/null 2>&1  ) ; then
+    echo "The input text's first line isn't yast installing system... exiting!"
+    exit 1
+fi
+
+
+iLine=0
+while read -r line 
+do
+    ((iLine++))
+#     echo "iline=$iLine"
+    
+    parseHistFileLine "$line"
+
+done < $TMP_DIR/history.txt
+
+echo ""
+wc -l $TMP_DIR/installed* | head -n 4
