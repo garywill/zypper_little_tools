@@ -49,3 +49,5 @@ For example
     zypinstmiss lang
 
 will find installed `xxx` and uninstalled `xxx-lang`.
+
+It doesn't know what you do need and what you don't. It just lists
