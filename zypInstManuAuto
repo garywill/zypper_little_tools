@@ -6,6 +6,7 @@
 
 TMP_DIR=$(mktemp -d /dev/shm/zypinstma-XXXXXX)
 RESULT_DIR=$TMP_DIR/results
+mkdir -p $RESULT_DIR
 echo "Temp dir $TMP_DIR"
 echo ""
 
@@ -141,16 +142,18 @@ function parseHistFileLine()
         fi
         curProgram=$program
 
-        if [[ $curZypAction == "dist-upgrade" ]]; then
-            echo -e "\n---------------------------------------------------------------------------------------"
-        fi
-        echo "found a history command at  L$curCommandAtLine  $curCommandAtTime  $curProgram $curZypAction"
+        echo -e "$time\t$program $zypper_action" >> $TMP_DIR/timesArr.txt 
 
         echo "" >> $TMP_DIR/installed.txt 
         echo "" >> $TMP_DIR/installed_user-choose.txt
         echo "" >> $TMP_DIR/installed_auto-select.txt   
         echo "" >> $TMP_DIR/installed_unsure.txt 
          
+         
+        if [[ $curZypAction == "dist-upgrade" ]]; then
+            echo -e "\n---------------------------------------------------------------------------------------"
+        fi
+        echo "found a history command at  L$curCommandAtLine  $curCommandAtTime  $curProgram $curZypAction"
           
     elif [[ $line_type == "install" ]]; then
         package="$(  echo "$line" | cut -d'|' -f 3  )"
@@ -255,6 +258,7 @@ do
         echo "install $line" 
     fi
 done < $TMP_DIR/zypperse.txt
+echo "$curCommandAtTime" >> $TMP_DIR/timesArr.txt
 
 function isPackageReallyInstalled() {
     local package="$1"
@@ -277,9 +281,127 @@ do
     fi
 done < <( cat $TMP_DIR/installed.txt | awk '{print $1}' )
 
+# html
+
+# TMP_DIR="."  #  临时
+# cat $TMP_DIR/installed.txt | awk '{print $2}' | uniq | grep -v -P "^$" > $TMP_DIR/timesArr.txt
+
+function echoHtml() {
+    local IN_BODY="$1"
+    echo "
+        <html>
+            <head>
+                <style>
+                    table {
+                    
+                    }
+                    td {
+                        vertical-align: top;
+                    }
+                    td, th {
+                        border: 1px solid #b0b0b0;
+                    }
+                    th {
+                        color: gray;
+                        font-weight: normal;
+                    }
+                    summary {
+                        color: #6372ee;
+                    }
+                </style>
+                <script type='text/javascript'>
+                    document.addEventListener('DOMContentLoaded', async function() {
+                        Array.from( document.getElementsByTagName('details') ) .forEach(  function (ele) {
+                            ele.open = true;
+                        });
+                    });
+                </script>
+            </head>
+            <body> <code>
+    "
+    echo "$IN_BODY"
+    echo "
+            </code> </body>
+        </html>
+    "
+}
+function echoDetails() {
+    local SUMMARY="$1"
+    local CONTENTS="$2" 
+    echo "
+        <hr> 
+        <div> 
+        <details>
+            <summary><b>$SUMMARY</b></summary>
+            $CONTENTS
+        </details> 
+        </div>
+    "
+}
+function echoTable() {
+    local USERC="$1"
+    local AUTOS="$2"
+    local UNSURE="$3"
+    echo "
+        <div>
+        <table>
+            <tr>
+                <th>User Choose</th>
+                <th>Auto Select</th>
+                <th>Unsure</th>
+            </tr>
+            <tr>
+                <td>$USERC</td>
+                <td>$AUTOS</td>
+                <td>$UNSURE</td>
+            </tr>
+        </table>
+        </div>
+    
+    "
+}
+function genTableAccrTime() {
+    local time="$1"
+    
+    local userc
+    local autos
+    local unsure
+    
+    userc="$(  grep -P "\t$time$" $TMP_DIR/installed_user-choose.txt | awk '{print $1}' | sed 's/$/\n<br>/g' 2>/dev/null  )" 
+    autos="$(  grep -P "\t$time$" $TMP_DIR/installed_auto-select.txt | awk '{print $1}' | sed 's/$/\n<br>/g' 2>/dev/null  )" 
+    unsure="$(  grep -P "\t$time$" $TMP_DIR/installed_unsure.txt | awk '{print $1}' | sed 's/$/\n<br>/g' 2>/dev/null  )" 
+    
+    echoTable "$userc" "$autos" "$unsure"
+}
+
+BODY_CONTENT=""
+function appendToBodyAccrTime() {
+    local time="$1"
+    local program="$2"
+    
+    local NEW_BODYCONTENT=""
+    local NEW_TABLE
+    
+    NEW_TABLE="$(  genTableAccrTime "$time"  )"
+    NEW_BODYCONTENT="$(  echoDetails "$time  $program" "$NEW_TABLE"  )"
+    
+    BODY_CONTENT="$(  echo "$BODY_CONTENT  $NEW_BODYCONTENT "   )" 
+}
+while read -r line 
+do
+    appendToBodyAccrTime "$( echo "$line" | awk  -F '\t' '{print $1}'  )" \
+                         "$( echo "$line" | awk  -F '\t' '{print $2}'  )"
+done < $TMP_DIR/timesArr.txt
+
+echoHtml "$BODY_CONTENT"    > $RESULT_DIR/index.html 
 
 
-# TODO html
 
+
+# end
 echo ""
 wc -l $TMP_DIR/installed* | head -n 4
+
+echo ""
+echo "Open to see the report:  file://$RESULT_DIR/index.html"
+
