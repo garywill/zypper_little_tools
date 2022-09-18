@@ -1,26 +1,25 @@
-
 For Linux distros that use zypper as package manager. 
 
 This repo contains:
 
 1. zypInstManAuto (**zyp**per **inst**allation **man**ually? or **auto**matically?)
-1. zypInstMiss
+2. zypInstMiss
 
 # zypInstManAuto
-
-This script will show what packages are chosen by user to install, what packages are automatically selected by dependency solver.
-
-Its output:
-
-- user-choose
-- auto-select
-- unsure ( when install packages via YaST it doesn't record which packages are auto selected)
 
 Usage:
 
 ```bash
 sudo cat /var/log/zypp/history | ./zypInstManuAuto
 ```
+
+This script generates a report listing packages installed in system, grouped by
+
+1. Install time
+2. Install reason
+   - User choose
+   - Auto select
+   - Unsure ( when install packages via YaST it doesn't record which packages are auto selected)
 
 [想知道原理及帮助改进](https://gist.github.com/garywill/6a359a9c49f1f66cdfe86d65fb8b6857)
 
@@ -31,8 +30,6 @@ sudo cat /var/log/zypp/history | ./zypInstManuAuto
 - [Zypper Equivalent for apt-get autoremove](https://forums.opensuse.org/showthread.php/519895-Zypper-Equivalent-for-apt-get-autoremove)
 - https://www.reddit.com/r/openSUSE/comments/i57ld8/what_is_zypper_equivalent_of_apt_autoremove/
 - [分享一个使用 zypper 实现 autoremove 的方法 - YaST &amp; Zypper - openSUSE 中文论坛](https://forum.suse.org.cn/t/topic/14137/)
-
-
 
 # zypInstMiss
 
