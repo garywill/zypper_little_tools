@@ -240,5 +240,45 @@ do
 
 done < $TMP_DIR/history.txt
 
+
+#  zypper se
+zypper se | grep -E "^i" | awk '{print $3}' > $TMP_DIR/zypperse.txt 
+
+echo "" >> $TMP_DIR/installed_unsure.txt 
+curCommandAtTime="UnknownTime"
+
+while read -r line  # "$line" is what's actually currently installed in system
+do
+    if ( ! isPackageAlreadyAdded "$line" ); then # if the "$line" is in our .txt list or not
+        addPackage_unsure "$line"
+        echo "install $line" 
+    fi
+done < $TMP_DIR/zypperse.txt
+
+function isPackageReallyInstalled() {
+    local package="$1"
+    local package_="$( echo "$package" | sed 's/\./\\\./g' | sed 's/+/\\+/g'  )"
+    if ( cat $TMP_DIR/zypperse.txt | grep -P "^$package_$"  >/dev/null 2>&1  ); then
+        return 0
+    else 
+        return 1
+    fi
+}
+
+while read -r line # $line is what's in our .txt list
+do
+    if [[ ! -n "$line" ]]; then
+        continue
+    fi
+    
+    if ( ! isPackageReallyInstalled "$line" ); then
+        removePackage "$line"
+    fi
+done < <( cat $TMP_DIR/installed.txt | awk '{print $1}' )
+
+
+
+# TODO html
+
 echo ""
 wc -l $TMP_DIR/installed* | head -n 4
