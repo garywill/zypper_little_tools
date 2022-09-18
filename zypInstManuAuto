@@ -250,6 +250,7 @@ curCommandAtTime="UnknownTime"
 while read -r line  # "$line" is what's actually currently installed in system
 do
     if ( ! isPackageAlreadyAdded "$line" ); then # if the "$line" is in our .txt list or not
+        addPackage "$line"
         addPackage_unsure "$line"
         echo "install $line" 
     fi
