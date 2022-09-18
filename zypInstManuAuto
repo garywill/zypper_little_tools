@@ -41,7 +41,7 @@ function parseZypperCmd()   # NOTE every parameter is 'xxxx' single-quoter quote
 
 cd $TMP_DIR
 touch  installed.txt   installed_user-choose.txt   installed_auto-select.txt   installed_unsure.txt 
-function isPackageAlreadyInstalled() {
+function isPackageAlreadyAdded() {
     local package="$1"
     
     local package_="$( echo "$package" | sed 's/\./\\\./g' | sed 's/+/\\+/g'  )"
@@ -56,28 +56,28 @@ function removePackage() {
     
     sed -i "/^${package}\t/d" installed.txt   installed_user-choose.txt   installed_auto-select.txt   installed_unsure.txt 
 }
-function installPackage() { 
+function addPackage() { 
     local package="$1"
     
     local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
     
     echo "$newLineText" >> installed.txt 
 }
-function installPackage_userchoose() {
+function addPackage_userchoose() {
     local package="$1"
     
     local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
     
     echo "$newLineText" >> installed_user-choose.txt 
 }
-function installPackage_autoselect() {
+function addPackage_autoselect() {
     local package="$1"
     
     local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
     
     echo "$newLineText" >> installed_auto-select.txt 
 }
-function installPackage_unsure() {
+function addPackage_unsure() {
     local package="$1"
     
     local newLineText="$(echo  -e "$package\t$curCommandAtTime"  )"
@@ -193,17 +193,17 @@ function parseHistFileLine()
 
         if [[ $install_type == "user-choose" ]]; then
             removePackage "$package"
-            installPackage "$package"
-            installPackage_userchoose "$package"
+            addPackage "$package"
+            addPackage_userchoose "$package"
         fi
         
-        if ( ! isPackageAlreadyInstalled "$package" ); then
-            installPackage "$package"
+        if ( ! isPackageAlreadyAdded "$package" ); then
+            addPackage "$package"
             
             if [[ $install_type == "auto-select" ]]; then
-                installPackage_autoselect "$package"
+                addPackage_autoselect "$package"
             elif [[ $install_type == "unsure" ]]; then
-                installPackage_unsure "$package"
+                addPackage_unsure "$package"
             fi
         fi
         
