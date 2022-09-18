@@ -107,7 +107,7 @@ function parseHistFileLine()
     local parseZypperCmd_result
     local install_type  # user-choose | auto-select | unsure
 
-    time="$(  echo "$line" | cut -d'|' -f 1  )"
+    time="$(  echo "$line" | cut -d'|' -f 1  | sed 's/ /_/g'  )"
 #     echo $time
     line_type="$(  echo "$line" | cut -d'|' -f 2 | awk '{print $1}' )"
     
