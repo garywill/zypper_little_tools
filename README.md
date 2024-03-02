@@ -18,5 +18,5 @@ Shows you a report listing software packages installed (installed by zypper pack
 Usage:
 
 1. `sudo cp /var/log/zypp/history /tmp`
-1. Load `history` into web
+1. Visit [this page](https://garywill.github.io/zypper_little_tools/) and load file `history` into web
 
