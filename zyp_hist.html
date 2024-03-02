@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="">
+    <head>
+        <meta charset="utf-8">
+        <title></title>
+        <script src="common.js"></script>
+        <script src="zyp_hist.js"></script>
+        
+                <style>
+                    table {
+                    
+                    }
+                    th {
+                        font-weight: bold;
+                    }
+                    td {
+                        vertical-align: top;
+                    }
+                    td div {
+                        max-height: 60vh;
+                        overflow-y: auto;
+                    }
+                    td, th {
+                        border: 1px solid #b0b0b0;
+                    }
+                    th {
+                        color: #666666;
+                        font-weight: normal;
+                    }
+                    summary {
+                        color: #404b9a;
+                    }
+                    .span_p {
+                        display: inline-block;
+                        word-break: keep-all;
+                    }
+                    .span_p::first-letter {
+                        font-weight: bold;
+                    }
+                    .td_install .p_removed {
+                        color: gray;
+                    }
+                    .td_remove {
+                        color: #30008f;
+                    }
+                    .td_remove .p_removed {
+                        color: #d65252;
+                    }
+                    .col_manu {
+                        background-color: #e7ffe6;
+                    }
+                    .col_unsure {
+                        background-color: #e6eeff;
+                    }
+                    .col_remove {
+                        background-color: #ffefef;
+                    }
+                    
+
+                </style>        
+    </head>
+    <body>
+     
+<h1>zypper history viewer</h1>
+<p>Shows you a report listing software packages installed (installed by zypper package manager) in your Linux system, grouped by</p>
+<ol>
+<li>The time you installed/removed them</li>
+<li>Installed packages, and how they got installed:<ul>
+<li>User choose</li>
+<li>Auto select</li>
+<li>Other ( when install packages via YaST it doesn't record which packages are auto selected)</li>
+</ul>
+</li>
+<li>Removed packages</li>
+</ol>
+<p>Usage:</p>
+<ol>
+<li><code>sudo cp /var/log/zypp/history /tmp</code></li>
+<li>Load <code>history</code> into web</li>
+</ol>
+
+     
+     
+     
+        <input type="file" id="myFile">
+        <button onclick="myFunction()">Read, parse and show</button>
+
+        <div>
+            <code id="fileContent" style="white-space: pre-wrap;"></code>
+        </div>
+        
+        <hr>
+        <br>
+        <div id="div_tables_cont">
+        
+        </div>
+    </body>
+</html>
